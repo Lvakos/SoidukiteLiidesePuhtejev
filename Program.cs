@@ -1,94 +1,145 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization; // VÄGA OLULINE: Vajalik InvariantCulture jaoks
+using System.Globalization;
 using System.IO;
 
 namespace SõidukiteLiidesePuhtejev
 {
     internal class Program
     {
-        static void Main()
+        static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
-            List<ISoiduk> soidukid = new List<ISoiduk>();
-            string fail = "andmed.txt";
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
 
-            if (!File.Exists(fail))
+            List<ISoiduk> sõidukid = new List<ISoiduk>();
+            Console.WriteLine("--- Sõidukite haldussüsteem ---");
+
+            string failTee = "soidukid.txt";
+
+            if (File.Exists(failTee))
             {
-                Console.WriteLine($"Faili '{fail}' ei leitud. Loon uue faili näidisandmetega...");
-
-                string[] naidisAndmed = new string[]
+                string[] read = File.ReadAllLines(failTee);
+                foreach (string rida in read)
                 {
-                    "Auto, 0.15, 120",
-                    "Jalgratas, 25",
-                    "Buss, 0.80, 200, 40",
-                    "Mootorratas, 0.08, 80"
-                };
+                    if (string.IsNullOrWhiteSpace(rida)) continue;
 
-                File.WriteAllLines(fail, naidisAndmed);
-                Console.WriteLine("Fail edukalt loodud! Jätkan andmete töötlemist.\n");
+                    string[] osad = rida.Split(';');
+                    try
+                    {
+                        switch (osad[0].ToLower())
+                        {
+                            case "auto":
+                                sõidukid.Add(new Auto(double.Parse(osad[1]), double.Parse(osad[2])));
+                                break;
+                            case "jalgratas":
+                                sõidukid.Add(new Jalgrattas(double.Parse(osad[1])));
+                                break;
+                            case "buss":
+                                sõidukid.Add(new Buss(double.Parse(osad[1]), double.Parse(osad[2]), int.Parse(osad[3])));
+                                break;
+                            case "mootorratas":
+                                sõidukid.Add(new Mootorratas(double.Parse(osad[1]), double.Parse(osad[2])));
+                                break;
+                        }
+                        Console.WriteLine($"Loetud failist: {osad[0]}");
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Vigane rida failis: {rida}");
+                    }
+                }
             }
 
-            string[] read = File.ReadAllLines(fail);
-
-            foreach (string rida in read)
+            while (true)
             {
-                if (string.IsNullOrWhiteSpace(rida)) continue;
-
-                string[] osad = rida.Split(',');
-
                 try
                 {
-                    string tyyp = osad[0].Trim();
+                    Console.WriteLine("Vali sõiduki tüüp: 1 - Auto, 2 - Jalgratas, 3 - Buss, 4 - Mootorratas, 0 - Lõpeta");
+                    string valik = Console.ReadLine();
+                    if (valik == "0") break;
 
-                    if (tyyp == "Auto")
+                    switch (valik)
                     {
-                        // LISATUD: CultureInfo.InvariantCulture tagab, et punktiga arvud loetakse õigesti
-                        double kulu = double.Parse(osad[1].Trim(), CultureInfo.InvariantCulture);
-                        double vahemaa = double.Parse(osad[2].Trim(), CultureInfo.InvariantCulture);
-                        soidukid.Add(new Auto(kulu, vahemaa));
+                        case "1":
+                            Console.Write("Sisesta kulu 1 km kohta: ");
+                            double autoKulu = double.Parse(Console.ReadLine());
+                            Console.Write("Sisesta teepikkus (km): ");
+                            double autoKm = double.Parse(Console.ReadLine());
+
+                            sõidukid.Add(new Auto(autoKulu, autoKm));
+                            break;
+
+                        case "2":
+                            Console.Write("Sisesta läbitud vahemaa (km): ");
+                            double ratasKm = double.Parse(Console.ReadLine());
+
+                            sõidukid.Add(new Jalgrattas(ratasKm));
+                            break;
+
+                        case "3":
+                            Console.Write("Sisesta kulu 1 km kohta: ");
+                            double bussKulu = double.Parse(Console.ReadLine());
+                            Console.Write("Sisesta vahemaa (km): ");
+                            double bussKm = double.Parse(Console.ReadLine());
+                            Console.Write("Sisesta reisijate arv: ");
+                            int reisijad = int.Parse(Console.ReadLine());
+
+                            sõidukid.Add(new Buss(bussKulu, bussKm, reisijad));
+                            break;
+
+                        case "4":
+                            Console.Write("Sisesta kulu 1 km kohta: ");
+                            double motoKulu = double.Parse(Console.ReadLine());
+                            Console.Write("Sisesta vahemaa (km): ");
+                            double motoKm = double.Parse(Console.ReadLine());
+
+                            sõidukid.Add(new Mootorratas(motoKulu, motoKm));
+                            break;
+
+                        default:
+                            Console.WriteLine("Vale valik, proovi uuesti.");
+                            continue;
                     }
-                    else if (tyyp == "Jalgratas")
-                    {
-                        double vahemaa = double.Parse(osad[1].Trim(), CultureInfo.InvariantCulture);
-                        soidukid.Add(new Jalgrattas(vahemaa));
-                    }
-                    else if (tyyp == "Buss")
-                    {
-                        double kulu = double.Parse(osad[1].Trim(), CultureInfo.InvariantCulture);
-                        double vahemaa = double.Parse(osad[2].Trim(), CultureInfo.InvariantCulture);
-                        int reisijad = int.Parse(osad[3].Trim()); // Täisarvudel pole täppi/koma, invariant pole rangelt vajalik
-                        soidukid.Add(new Buss(kulu, vahemaa, reisijad));
-                    }
-                    else if (tyyp == "Mootorratas")
-                    {
-                        double kulu = double.Parse(osad[1].Trim(), CultureInfo.InvariantCulture);
-                        double vahemaa = double.Parse(osad[2].Trim(), CultureInfo.InvariantCulture);
-                        soidukid.Add(new Mootorratas(kulu, vahemaa));
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Tundmatu sõidukitüüp real: {rida}");
-                    }
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("Viga: Palun sisesta ainult numbreid!");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Viga rea töötlemisel ({rida}): {ex.Message}");
+                    Console.WriteLine($"Tekkis ootamatu viga: {ex.Message}");
                 }
             }
 
-            // Tulemuste kuvamine
-            Console.WriteLine("=== SÕIDUKID ===");
-            double koguKulu = 0;
+            Console.WriteLine("--- TULEMUSED ---");
+            double kokkuKulu = 0;
 
-            foreach (ISoiduk s in soidukid)
+            foreach (ISoiduk s in sõidukid)
             {
                 Console.WriteLine(s.ToString());
-                koguKulu += s.ArvutaKulu();
+                kokkuKulu += s.ArvutaKulu();
             }
+            Console.WriteLine("-------------------------");
+            Console.WriteLine($"Kogu kulu kõikide sõidukite peale: {kokkuKulu:F2}€");
 
-            Console.WriteLine("---------------------------------------------");
-            Console.WriteLine($"Kõikide sõidukite kogukulu: {koguKulu:F2} €");
+            using (StreamWriter sw = new StreamWriter(failTee))
+            {
+                foreach (ISoiduk s in sõidukid)
+                {
+                    if (s is Auto a)
+                        sw.WriteLine($"auto;{a.Kutusekulu};{a.Teepikkus}");
+                    else if (s is Jalgrattas j)
+                        sw.WriteLine($"jalgratas;{j.Vahemaa}");
+                    else if (s is Buss b)
+                        sw.WriteLine($"buss;{b.KutuseKulu};{b.Vahemaa};{b.Reisijad}");
+                    else if (s is Mootorratas m)
+                        sw.WriteLine($"mootorratas;{m.Kutusekulu};{m.Vahemaa}");
+                }
+            }
+            Console.WriteLine($"Salvestatud faili: {failTee}");
+
+            Console.WriteLine("Programmi lõpetamiseks vajuta suvalist klahvi...");
             Console.ReadKey();
         }
     }
